@@ -122,6 +122,67 @@ class Track:
             return open_length + closing
         return open_length
 
+    @cached_property
+    def curvature(self) -> NDArray[np.float64]:
+        """Signed curvature at each centerline point (1/m).
+
+        Uses the standard parametric curvature formula:
+
+            kappa = (x' * y'' - y' * x'') / (x'^2 + y'^2)^(3/2)
+
+        where derivatives are computed with respect to arc length. The sign
+        indicates the direction of turning: positive is counter-clockwise
+        (left turn), negative is clockwise (right turn).
+
+        Derivatives are computed via centered finite differences. On closed
+        tracks the derivatives wrap around the start/end boundary, yielding
+        a smooth curvature array with no artifacts at the seam. On open
+        tracks one-sided differences are used at the endpoints.
+
+        For best accuracy the centerline should be uniformly spaced; call
+        :meth:`resample` first if the raw input has variable spacing.
+
+        Returns:
+            Array of shape ``(N,)`` of signed curvatures in 1/m.
+        """
+        x = self.centerline[:, 0]
+        y = self.centerline[:, 1]
+        if self.closed:
+            # np.gradient with periodic-like handling: wrap arrays by one
+            # point on each end so centered differences are correct at the
+            # seam, then trim back to the original length.
+            x_wrap = np.concatenate([x[-1:], x, x[:1]])
+            y_wrap = np.concatenate([y[-1:], y, y[:1]])
+            closing_length = float(
+                np.linalg.norm(self.centerline[0] - self.centerline[-1])
+            )
+            s_wrap = np.concatenate(
+                [
+                    [self.arc_lengths[0] - closing_length],
+                    self.arc_lengths,
+                    [self.arc_lengths[-1] + closing_length],
+                ]
+            )
+            x_prime = np.gradient(x_wrap, s_wrap)[1:-1]
+            y_prime = np.gradient(y_wrap, s_wrap)[1:-1]
+            x_double = np.gradient(x_prime, self.arc_lengths)
+            y_double = np.gradient(y_prime, self.arc_lengths)
+        else:
+            x_prime = np.gradient(x, self.arc_lengths)
+            y_prime = np.gradient(y, self.arc_lengths)
+            x_double = np.gradient(x_prime, self.arc_lengths)
+            y_double = np.gradient(y_prime, self.arc_lengths)
+
+        numerator = x_prime * y_double - y_prime * x_double
+        denominator = (x_prime**2 + y_prime**2) ** 1.5
+        # Avoid division by zero at degenerate points (shouldn't happen on
+        # a well-formed track, but guard anyway).
+        denominator = np.where(denominator == 0, 1.0, denominator)
+        result: NDArray[np.float64] = (numerator / denominator).astype(
+            np.float64
+        )
+        return result
+
     def resample(self, spacing: float) -> Track:
         """Return a new Track with uniform arc-length spacing.
 
