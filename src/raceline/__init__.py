@@ -2,6 +2,7 @@
 
 from raceline.optimizer import RacingLine, optimize_line
 from raceline.point_mass import PointMassVehicle
+from raceline.simulator import LapResult, simulate_lap
 from raceline.speed_profile import SpeedProfile, compute_speed_profile
 from raceline.track import Track
 from raceline.vehicle import VehicleModel
@@ -16,4 +17,6 @@ __all__ = [
     "compute_speed_profile",
     "RacingLine",
     "optimize_line",
+    "LapResult",
+    "simulate_lap",
 ]
