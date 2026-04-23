@@ -1,5 +1,6 @@
 """min-curvature-race-line: minimum-curvature racing line optimization."""
 
+from raceline.optimizer import RacingLine, optimize_line
 from raceline.point_mass import PointMassVehicle
 from raceline.speed_profile import SpeedProfile, compute_speed_profile
 from raceline.track import Track
@@ -13,4 +14,6 @@ __all__ = [
     "PointMassVehicle",
     "SpeedProfile",
     "compute_speed_profile",
+    "RacingLine",
+    "optimize_line",
 ]
