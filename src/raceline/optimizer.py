@@ -168,8 +168,8 @@ def optimize_line(
     nx = normals[:, 0]
     ny = normals[:, 1]
 
-    px = cx + cp.multiply(alpha, nx)  # type: ignore[attr-defined]
-    py = cy + cp.multiply(alpha, ny)  # type: ignore[attr-defined]
+    px = cx + cp.multiply(alpha, nx)
+    py = cy + cp.multiply(alpha, ny)
 
     # Curvature objective: sum of squared second differences.
     # For closed tracks, indices wrap around.
@@ -182,7 +182,7 @@ def optimize_line(
 
     ddx = px[idx_prev] - 2 * px + px[idx_next]
     ddy = py[idx_prev] - 2 * py + py[idx_next]
-    curvature_cost = cp.sum_squares(ddx) + cp.sum_squares(ddy)  # type: ignore[attr-defined]
+    curvature_cost = cp.sum_squares(ddx) + cp.sum_squares(ddy)
 
     # Path-length objective: sum of squared first differences.
     if track.closed:
@@ -191,7 +191,7 @@ def optimize_line(
     else:
         dx = px[1:] - px[:-1]
         dy = py[1:] - py[:-1]
-    length_cost = cp.sum_squares(dx) + cp.sum_squares(dy)  # type: ignore[attr-defined]
+    length_cost = cp.sum_squares(dx) + cp.sum_squares(dy)
 
     objective = cp.Minimize(curvature_cost + length_weight * length_cost)
 
@@ -205,7 +205,7 @@ def optimize_line(
     ]
 
     problem = cp.Problem(objective, constraints)  # type: ignore[arg-type]
-    problem.solve(solver=cp.OSQP, warm_start=True, verbose=False)  # type: ignore[no-untyped-call]
+    problem.solve(solver=cp.OSQP, warm_start=True, verbose=False)
 
     if problem.status not in ("optimal", "optimal_inaccurate"):
         raise ValueError(f"Optimizer failed: solver status = {problem.status}")
