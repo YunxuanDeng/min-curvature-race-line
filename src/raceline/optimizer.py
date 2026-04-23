@@ -204,7 +204,7 @@ def optimize_line(
         alpha >= -track.width_right,
     ]
 
-    problem = cp.Problem(objective, constraints)  # type: ignore[arg-type]
+    problem = cp.Problem(objective, constraints)  # type: ignore
     problem.solve(solver=cp.OSQP, warm_start=True, verbose=False)
 
     if problem.status not in ("optimal", "optimal_inaccurate"):
