@@ -9,12 +9,14 @@ The ``Agg`` backend is used so no GUI window pops up during tests.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import matplotlib
 import numpy as np
 import pytest
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 from raceline import (
     PointMassVehicle,
@@ -59,7 +61,7 @@ def vehicle() -> PointMassVehicle:
 
 
 @pytest.fixture()
-def _close_figures():
+def _close_figures() -> Iterator[None]:
     """Close all matplotlib figures after each test."""
     yield
     plt.close("all")
