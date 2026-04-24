@@ -126,7 +126,7 @@ class TestOptimizeLineOracles:
         track = _straight_track()
         line = optimize_line(track, length_weight=0.01)
 
-        # All offsets should be essentially zero.
+        # All offsets should be essentially zero
         np.testing.assert_allclose(line.offsets, 0.0, atol=1e-3)
 
     def test_circle_track_offset_is_uniform(self) -> None:
@@ -134,7 +134,7 @@ class TestOptimizeLineOracles:
         track = _circle_track(50.0, n_points=200, width=5.0)
         line = optimize_line(track, length_weight=0.01)
 
-        # Offsets should be nearly identical at every station.
+        # Offsets should be nearly identical at every station
         assert line.offsets.std() < 0.01
 
     def test_circle_optimal_offset_is_toward_inside(self) -> None:
@@ -174,17 +174,17 @@ class TestOptimizeLineConstraints:
         track = _circle_track(50.0, n_points=200, width=5.0)
         line = optimize_line(track)
 
-        # alpha_i >= -w_right and alpha_i <= w_left
-        assert np.all(line.offsets >= -track.width_right - 1e-6)
-        assert np.all(line.offsets <= track.width_left + 1e-6)
+        # SCS solver has ~1e-4 constraint tolerance
+        assert np.all(line.offsets >= -track.width_right - 1e-3)
+        assert np.all(line.offsets <= track.width_left + 1e-3)
 
     def test_narrow_track_constrains_offsets(self) -> None:
         """On a very narrow track, the line can't deviate much."""
         track = _circle_track(50.0, n_points=200, width=0.5)
         line = optimize_line(track)
 
-        # With only 0.5m on each side, offsets must be small.
-        assert np.abs(line.offsets).max() <= 0.5 + 1e-6
+        # SCS solver has ~1e-4 constraint tolerance
+        assert np.abs(line.offsets).max() <= 0.5 + 1e-3
 
     def test_asymmetric_widths_shift_line(self) -> None:
         """Wider left than right allows the line to shift left."""
@@ -198,7 +198,7 @@ class TestOptimizeLineConstraints:
         )
         line = optimize_line(track)
 
-        # The line should be shifted toward the wider side (left).
+        # The line should be shifted toward the wider side (left)
         assert line.offsets.mean() > 0
 
 
@@ -234,12 +234,12 @@ class TestOptimizerSpeedProfileIntegration:
             max_speed_value=60.0,
         )
 
-        # Centerline lap time.
+        # Centerline lap time
         profile_cl = compute_speed_profile(
             track.curvature, track.arc_lengths, vehicle, closed=True
         )
 
-        # Optimized line lap time.
+        # Optimized line lap time
         line = optimize_line(track, length_weight=0.01)
         profile_opt = compute_speed_profile(
             line.curvature, line.arc_lengths, vehicle, closed=True
@@ -253,7 +253,7 @@ class TestOptimizerSpeedProfileIntegration:
         line_zero = optimize_line(track, length_weight=0.0)
         line_heavy = optimize_line(track, length_weight=1.0)
 
-        # Different weight → different solution.
+        # Different weight -> different solution
         assert not np.allclose(
             line_zero.offsets, line_heavy.offsets, atol=0.01
         )

@@ -1,9 +1,10 @@
 """Minimum-curvature racing line optimization.
 
-Formulates the racing line as a quadratic program (QP): at each discretization
-station along the centerline, a lateral offset variable determines how far the
-racing line deviates from the centerline. The objective minimizes the sum of
-squared discrete curvatures (with an optional path-length regularizer), subject
+Formulates the racing line as a quadratic program (QP): at each
+discretization station along the centerline, a lateral offset
+variable determines how far the racing line deviates from the
+centerline. The objective minimizes the sum of squared discrete
+curvatures (with an optional path-length regularizer), subject
 to the constraint that each point stays within the track boundaries.
 
 The QP is convex and has a unique solution, solved via ``cvxpy``.
@@ -12,6 +13,7 @@ The QP is convex and has a unique solution, solved via ``cvxpy``.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -29,10 +31,10 @@ class RacingLine:
     """An optimized racing line on a track.
 
     Attributes:
-        points: Array of shape ``(N, 2)`` giving (x, y) coordinates of the
-        racing line in meters.
-        offsets: Array of shape ``(N,)`` of lateral offsets from the centerline
-        (m). Positive = left of centerline.
+        points: Array of shape ``(N, 2)`` giving (x, y) coordinates
+            of the racing line in meters.
+        offsets: Array of shape ``(N,)`` of lateral offsets from the
+            centerline (m). Positive = left of centerline.
         arc_lengths: Cumulative arc length along the racing line (m).
         closed: Whether the line forms a closed loop.
     """
@@ -46,8 +48,8 @@ class RacingLine:
     def curvature(self) -> NDArray[np.float64]:
         """Signed curvature at each point of the racing line (1/m).
 
-        Computed from the (x, y) points using the same parametric formula as
-        ``Track.curvature``.
+        Computed from the (x, y) points using the same parametric
+        formula as ``Track.curvature``.
         """
         x = self.points[:, 0]
         y = self.points[:, 1]
@@ -89,8 +91,7 @@ def _compute_normals(
 ) -> NDArray[np.float64]:
     """Compute unit normal vectors at each centerline point.
 
-    The normal is the 90-degree counter-clock-wise (CCW) rotation of the unit
-    tangent:
+    The normal is the 90-degree CCW rotation of the unit tangent:
     ``n = (-ty, tx)`` where ``(tx, ty)`` is the tangent direction.
     This means positive offsets go to the left of the travel direction.
     """
@@ -126,7 +127,7 @@ def _compute_arc_lengths_from_points(
 def optimize_line(
     track: Track,
     *,
-    length_weight: float = 0.01,
+    length_weight: float = 0.0001,
 ) -> RacingLine:
     """Compute the minimum-curvature racing line on a track.
 
@@ -141,11 +142,11 @@ def optimize_line(
     the accuracy of the curvature approximation.
 
     Args:
-        track: A ``Track`` instance (uniformly resampled).
+        track: A ``Track`` instance (should be uniformly resampled).
         length_weight: Weight of the path-length regularizer relative
             to the curvature term. 0.0 gives pure minimum curvature;
             larger values bias toward shorter paths. Typical range:
-            0.001 to 0.1. Defaults to 0.01.
+            0.00001 to 0.01. Defaults to 0.0001.
 
     Returns:
         A ``RacingLine`` containing the optimized path, offsets, and
@@ -205,9 +206,18 @@ def optimize_line(
     ]
 
     problem = cp.Problem(objective, constraints)
-    problem.solve(solver=cp.OSQP, warm_start=True, verbose=False)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        problem.solve(
+            solver=cp.SCS,
+            verbose=False,
+            max_iters=10000,
+        )
 
-    if problem.status not in ("optimal", "optimal_inaccurate"):
+    if problem.status not in (
+        "optimal",
+        "optimal_inaccurate",
+    ):
         raise ValueError(f"Optimizer failed: solver status = {problem.status}")
 
     alpha_opt: NDArray[np.float64] = np.asarray(alpha.value, dtype=np.float64)
