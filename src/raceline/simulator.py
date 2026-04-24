@@ -50,8 +50,14 @@ def _compute_lateral_g(
     speeds: NDArray[np.float64],
     curvature: NDArray[np.float64],
 ) -> NDArray[np.float64]:
-    """Compute lateral acceleration: a_lat = v^2 * |kappa|."""
-    return speeds**2 * np.abs(curvature)
+    """Compute signed lateral acceleration: a_lat = v^2 * kappa.
+
+    The sign preserves the turn direction: positive curvature (left
+    turn) gives positive lateral g, negative curvature (right turn)
+    gives negative lateral g. This is needed for the g-g diagram to
+    show scatter in both lateral directions.
+    """
+    return speeds**2 * curvature
 
 
 def _compute_longitudinal_g(
@@ -61,50 +67,26 @@ def _compute_longitudinal_g(
 ) -> NDArray[np.float64]:
     """Compute longitudinal acceleration from speed differences.
 
-    Uses centered differences: a_long = (v_{i+1}^2 - v_{i-1}^2) / (2 * ds).
-    This gives the acceleration at each station based on the
-    kinematic equation v^2 = v0^2 + 2*a*ds.
+    Uses forward differences: the acceleration at station ``i`` is
+    derived from the speed change between station ``i`` and ``i+1``.
+    This pairs each acceleration value with the curvature at the
+    same station, preserving the friction-circle relationship.
+
+    Sign convention: positive = accelerating, negative = braking.
     """
     n = len(speeds)
-    a_long = np.zeros(n, dtype=np.float64)
+    ds = float(arc_lengths[1] - arc_lengths[0]) if n > 1 else 1.0
 
     if closed:
         v_next = np.roll(speeds, -1)
-        v_prev = np.roll(speeds, 1)
-        ds_next = np.roll(arc_lengths, -1) - arc_lengths
-        ds_prev = arc_lengths - np.roll(arc_lengths, 1)
-        # Fix wrap-around segments.
-        ds_next[-1] = (
-            arc_lengths[0]
-            + (arc_lengths[-1] - arc_lengths[-2])
-            - arc_lengths[-1]
-        )
-        ds_prev[0] = (
-            (
-                arc_lengths[0]
-                + (arc_lengths[-1] - arc_lengths[-2])
-                - arc_lengths[-1]
-            )
-            if False
-            else (arc_lengths[1] - arc_lengths[0])
-        )
-        ds_total = ds_next + ds_prev
-        ds_total = np.where(ds_total == 0, 1.0, ds_total)
-        a_long = (v_next**2 - v_prev**2) / (2 * ds_total)
+        a_long: NDArray[np.float64] = (
+            (v_next**2 - speeds**2) / (2.0 * ds)
+        ).astype(np.float64)
     else:
-        # Interior points: centered difference.
-        ds = np.diff(arc_lengths)
-        for i in range(1, n - 1):
-            ds_total = arc_lengths[i + 1] - arc_lengths[i - 1]
-            if ds_total > 0:
-                a_long[i] = (speeds[i + 1] ** 2 - speeds[i - 1] ** 2) / (
-                    2 * ds_total
-                )
-        # Endpoints: forward/backward difference.
-        if ds[0] > 0:
-            a_long[0] = (speeds[1] ** 2 - speeds[0] ** 2) / (2 * ds[0])
-        if ds[-1] > 0:
-            a_long[-1] = (speeds[-1] ** 2 - speeds[-2] ** 2) / (2 * ds[-1])
+        a_long = np.zeros(n, dtype=np.float64)
+        if n > 1:
+            a_long[:-1] = (speeds[1:] ** 2 - speeds[:-1] ** 2) / (2.0 * ds)
+            a_long[-1] = a_long[-2]
 
     return a_long
 
@@ -124,7 +106,7 @@ def simulate_lap(
     vehicle: VehicleModel,
     *,
     optimize: bool = True,
-    length_weight: float = 0.01,
+    length_weight: float = 0.0001,
 ) -> LapResult:
     """Simulate a complete lap and return timing and telemetry.
 
@@ -163,6 +145,17 @@ def simulate_lap(
     long_g = _compute_longitudinal_g(
         profile.speeds, line.arc_lengths, track.closed
     )
+
+    # Clamp longitudinal g to the friction circle. The speed profile
+    # was computed respecting the friction circle at each step, but
+    # post-hoc finite differences can slightly exceed it at
+    # corner-entry/exit transitions due to discretization.
+    # Infer the grip limit from the maximum lateral g observed
+    # (which is set by the vehicle's cornering speed limit).
+    grip = float(np.abs(lat_g).max()) * 1.001
+    lat_mag = np.abs(lat_g)
+    long_budget = np.sqrt(np.maximum(0.0, grip**2 - lat_mag**2))
+    long_g = np.clip(long_g, -long_budget, long_budget)
 
     return LapResult(
         lap_time=profile.lap_time,

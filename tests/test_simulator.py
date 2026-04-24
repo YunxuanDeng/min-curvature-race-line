@@ -133,11 +133,11 @@ class TestSimulateCenterline:
         np.testing.assert_allclose(result.racing_line.offsets, 0.0)
 
     def test_lateral_g_within_grip(self) -> None:
-        """Lateral g never exceeds the vehicle's grip limit."""
+        """Lateral g magnitude never exceeds the vehicle's grip limit."""
         track = _stadium_track()
         vehicle = _default_vehicle()
         result = simulate_lap(track, vehicle, optimize=False)
-        assert np.all(result.lateral_g <= vehicle.max_grip + 1e-6)
+        assert np.all(np.abs(result.lateral_g) <= vehicle.max_grip + 1e-6)
 
     def test_all_speeds_positive(self) -> None:
         """All speeds in the result are positive."""

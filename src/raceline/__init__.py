@@ -10,13 +10,13 @@ from raceline.vehicle import VehicleModel
 __version__ = "0.1.0"
 
 __all__ = [
+    "LapResult",
+    "PointMassVehicle",
+    "RacingLine",
+    "SpeedProfile",
     "Track",
     "VehicleModel",
-    "PointMassVehicle",
-    "SpeedProfile",
     "compute_speed_profile",
-    "RacingLine",
     "optimize_line",
-    "LapResult",
     "simulate_lap",
 ]
