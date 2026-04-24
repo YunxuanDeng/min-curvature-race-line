@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.colorbar import Colorbar
