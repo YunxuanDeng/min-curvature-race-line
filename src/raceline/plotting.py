@@ -18,8 +18,6 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from raceline import PointMassVehicle
-
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.colorbar import Colorbar
@@ -27,6 +25,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from raceline.optimizer import RacingLine
+    from raceline.point_mass import PointMassVehicle
     from raceline.simulator import LapResult
     from raceline.track import Track
 
@@ -118,7 +117,7 @@ def plot_track(
         zorder=10,
     )
 
-    ax.set_aspect("equal")
+    ax.set_aspect("equal", adjustable="box")
     ax.set_xlabel("x (m)")
     ax.set_ylabel("y (m)")
     ax.legend(loc="best", fontsize=8)
@@ -299,7 +298,7 @@ def plot_gg_diagram(
         "Longitudinal acceleration (G)\n+ braking / \u2212 acceleration"
     )
     ax.set_title("Simulated g-g Diagram")
-    ax.set_aspect("equal")
+    ax.set_aspect("equal", adjustable="box")
     ax.axhline(0, color="0.8", linewidth=0.5)
     ax.axvline(0, color="0.8", linewidth=0.5)
     if show_friction_circle:
@@ -311,6 +310,7 @@ def plot_gg_diagram(
 def plot_lap_summary(
     track: Track,
     result: LapResult,
+    vehicle_note: str = "",
     vehicle: PointMassVehicle | None = None,
 ) -> Figure:
     """Create a summary figure for a lap simulation.
@@ -322,14 +322,15 @@ def plot_lap_summary(
         track: The ``Track`` used for simulation
         result: A ``LapResult`` from ``simulate_lap``
         vehicle: A ``PointMassVehicle`` from ``point_mass``
+        vehicle_note: A brief noting of vehicle make, model, or other things
 
     Returns:
         The matplotlib ``Figure`` containing all panels.
     """
     fig = plt.figure(figsize=(16, 10))
 
-    # Left panel (tall): racing line.
-    ax_track = fig.add_axes((0.05, 0.32, 0.55, 0.60))
+    # Left panel (tall): racing line
+    ax_track = fig.add_axes((0.05, 0.33, 0.55, 0.60))
     plot_racing_line(
         track,
         result.racing_line,
@@ -338,11 +339,11 @@ def plot_lap_summary(
         show_centerline=False,
     )
 
-    # Upper right: g-g diagram.
+    # Upper right: g-g diagram
     ax_gg = fig.add_axes((0.68, 0.38, 0.28, 0.50))
     plot_gg_diagram(result, ax=ax_gg)
 
-    # Bottom (full width): speed profile.
+    # Bottom (full width): speed profile
     ax_speed = fig.add_axes((0.05, 0.06, 0.90, 0.22))
     plot_speed_profile(result, ax=ax_speed)
 
@@ -352,7 +353,7 @@ def plot_lap_summary(
         fontweight="bold",
     )
 
-    # Vehicle parameters text box.
+    # Vehicle parameters text box
     if vehicle is not None:
         info = (
             f"Mass: {vehicle.mass:.0f} kg\n"
@@ -380,7 +381,7 @@ def plot_lap_summary(
         )
 
     fig.suptitle(
-        f"Lap Summary  |  {result.lap_time:.2f} s",
+        f"Lap Summary: {vehicle_note}",
         fontsize=14,
         fontweight="bold",
     )
